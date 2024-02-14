@@ -1,26 +1,100 @@
 # Keymaster Basic
 # Simple lock code manager for Home Assistant
+# Added lock state sensor
 
 # Add your locks here
 lock:
   - platform: group
     name: "House Locks"
     entities:
-      - lock.front_door
-      - lock.another_door
+      - lock.yourlockname
+      
 
-# Add notification services
-notify:
-  - name: "Lock Notify Group"
-    platform: group
-    services:
-      - service: mobile_app_desertblade_phone
-      - service: mobile_app_person_ha_app
+# Lock state sensor add lock sensor
+template:
+  - sensor:
+    - name: "Front Door Lock State"
+      state: >-
+        {% set lock_entity_id = 'sensor.yourlockname' %}
+        
 
-###############################
-##  NO CHANGES NEEDED BELOW  ##
-##    PROCEED WITH CAUTION   ##
-###############################
+        {% set alarm_type = states(lock_entity_id + '_alarmtype') | int(0) %}
+        {% set alarm_level = states(lock_entity_id + '_alarmlevel') | int(0) %} 
+        {% set namesensor = "input_text.lock_code_slot_" ~
+                alarm_level ~ "_name" %}
+
+        {% if alarm_type == 0 %}
+                No Report
+            {% elif alarm_type == 9 %}
+                Motor Jammed
+            {% elif alarm_type == 10 %}
+                Handing Completed
+            {% elif alarm_type == 18 %}
+                {% if alarm_level == 251 %}
+                    Locked by Keypad Master PIN
+                {% else %}
+                    Locked by {{states(namesensor)}} PIN
+                    
+                {% endif %}
+            {% elif alarm_type == 19 %}
+                {% if alarm_level == 251 %}
+                    Unlocked by Keypad Master PIN
+                {% else %}
+                    Unlocked by {{states(namesensor)}} PIN
+                    
+                {% endif %}
+            {% elif alarm_type == 21 %}
+                {% if alarm_level == 1 %}
+                    Locked by Manual Mechanical
+                {% elif alarm_level == 2 %}
+                    Locked by Keypad Touch
+                {% else %}
+                    Locked by Manual
+                {% endif %}
+            {% elif alarm_type == 22 %}
+                Unlock by Manual Mechanical
+            {% elif alarm_type == 24 %}
+                Locked by Home Assistant
+            {% elif alarm_type == 25 %}
+                Unlocked by Home Assistant
+            {% elif alarm_type == 27 %}
+                Locked by Auto-Lock
+            {% elif alarm_type == 33 %}
+                Disabled {{states(namesensor)}} PIN
+            {% elif alarm_type == 48 %}
+                Factory Reset Defaults
+            {% elif alarm_type == 112 %}
+                {% if alarm_level == 0 %}
+                    Master PIN Changed at Keypad
+                {% else %}
+                    Enabled {{states(namesensor)}} PIN
+                {% endif %}
+            {% elif alarm_type == 113 %}
+                New PIN already exists slot {{ alarm_level }}
+            {% elif alarm_type == 130 %}
+                Power to Z-Wave Module Restored
+            {% elif alarm_type == 161 %}
+                {% if alarm_level == 1 %}
+                    Too many failed PIN attempts
+                {% elif alarm_level == 2 %}
+                    Keypad Front Escutcheon Removed
+                {% else %}
+                    Unknown Tamper Alarm
+                {% endif %}
+            {% elif alarm_type == 167 %}
+                Low Battery
+            {% elif alarm_type == 168 %}
+                Low Battery Critical
+            {% elif alarm_type == 169 %}
+                Low Battery Cannot Operate
+            {% else %}
+                Unknown: alarm_type={{ alarm_type }}, level={{ alarm_level }}
+            {% endif %}
+
+##############
+##Don't modify below##
+
+# Pin Code Functions
 automation:
   - alias: Set Lock Codes
     description: Set Key Codes on Locks
@@ -106,7 +180,8 @@ automation:
     mode: queued
     max: 10
 
-   - alias: Lock Notifications
+# Lock Notifications
+  - alias: Lock Notifications
     description: "Notify when certain codes are used to unlock the doors, if notify is enabled"
     id: lock_notifications
     trigger:
@@ -274,3 +349,4 @@ input_text:
   lock_code_slot_8_name:
     name: Lock Code Slot 8 Name
     icon: mdi:account
+
